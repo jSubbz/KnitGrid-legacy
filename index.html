@@ -5,30 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title data-i18n="app.title">app.title</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="data:," />
   </head>
 
   <body>
-    <div class="window" role="application" aria-label="app.window.ariaLabel" data-i18n-attr="aria-label:app.window.ariaLabel">
+    <div
+      class="window"
+      role="application"
+      aria-label="app.window.ariaLabel"
+      data-i18n-attr="aria-label:app.window.ariaLabel"
+    >
       <header class="titlebar" role="banner">
-        <nav class="menubar" role="menubar" aria-label="app.menubar.ariaLabel" data-i18n-attr="aria-label:app.menubar.ariaLabel">
+        <nav
+          class="menubar"
+          role="menubar"
+          aria-label="app.menubar.ariaLabel"
+          data-i18n-attr="aria-label:app.menubar.ariaLabel"
+        >
           <button class="menuitem" role="menuitem" type="button" data-i18n="menu.file">menu.file</button>
           <button class="menuitem" role="menuitem" type="button" data-i18n="menu.settings">menu.settings</button>
           <button class="menuitem" role="menuitem" type="button" data-i18n="menu.view">menu.view</button>
 
-          <div class="menuitem menuitem-inline">
-            <span data-i18n="menu.language">menu.language</span>
-            <select id="langSelect" class="langselect" aria-label="menu.language">
-              <option value="en">en</option>
-              <option value="fr">fr</option>
-              <option value="de">de</option>
-            </select>
+          <div class="menu" data-menu="language">
+            <button
+              class="menuitem menu-trigger"
+              type="button"
+              id="langMenuButton"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              data-i18n="menu.language"
+            >
+              menu.language
+            </button>
+
+            <div class="menu-popup" role="menu" aria-labelledby="langMenuButton" hidden>
+              <button class="menu-popup-item" role="menuitem" type="button" data-lang="en" data-i18n="menu.language.en">
+                menu.language.en
+              </button>
+              <button class="menu-popup-item" role="menuitem" type="button" data-lang="fr" data-i18n="menu.language.fr">
+                menu.language.fr
+              </button>
+              <button class="menu-popup-item" role="menuitem" type="button" data-lang="de" data-i18n="menu.language.de">
+                menu.language.de
+              </button>
+            </div>
           </div>
 
           <button class="menuitem" role="menuitem" type="button" data-i18n="menu.tools">menu.tools</button>
           <button class="menuitem" role="menuitem" type="button" data-i18n="menu.help">menu.help</button>
         </nav>
 
-        <div class="window-controls" aria-label="app.windowControls.ariaLabel" data-i18n-attr="aria-label:app.windowControls.ariaLabel">
+        <div
+          class="window-controls"
+          aria-label="app.windowControls.ariaLabel"
+          data-i18n-attr="aria-label:app.windowControls.ariaLabel"
+        >
           <button class="winbtn" type="button" id="btnMin" title="window.minimize" data-i18n-attr="title:window.minimize">
             <span aria-hidden="true">─</span>
           </button>
@@ -42,15 +73,21 @@
       </header>
 
       <main class="content" role="main" aria-label="app.content.ariaLabel" data-i18n-attr="aria-label:app.content.ariaLabel">
-        <!-- intentionally blank -->
+        <!-- intentionally blank (content.js will own this region) -->
       </main>
 
-      <footer class="statusbar" role="contentinfo" aria-label="app.statusbar.ariaLabel" data-i18n-attr="aria-label:app.statusbar.ariaLabel">
-        <div class="status-left" data-i18n="status.placeholder">status.placeholder</div>
+      <footer
+        class="statusbar"
+        role="contentinfo"
+        aria-label="app.statusbar.ariaLabel"
+        data-i18n-attr="aria-label:app.statusbar.ariaLabel"
+      >
+        <div class="status-left" id="statusLeft" data-i18n="status.placeholder">status.placeholder</div>
         <div class="status-right" id="statusRight" aria-live="polite"></div>
       </footer>
     </div>
 
-    <script src="app.js"></script>
+    <!-- ES module bootstrap -->
+    <script type="module" src="app.js"></script>
   </body>
 </html>
