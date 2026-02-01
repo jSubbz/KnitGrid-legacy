@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="app.title">app.title</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <div class="window" role="application" aria-label="app.window.ariaLabel" data-i18n-attr="aria-label:app.window.ariaLabel">
+      <header class="titlebar" role="banner">
+        <nav class="menubar" role="menubar" aria-label="app.menubar.ariaLabel" data-i18n-attr="aria-label:app.menubar.ariaLabel">
+          <button class="menuitem" role="menuitem" type="button" data-i18n="menu.file">menu.file</button>
+          <button class="menuitem" role="menuitem" type="button" data-i18n="menu.settings">menu.settings</button>
+          <button class="menuitem" role="menuitem" type="button" data-i18n="menu.view">menu.view</button>
+
+          <div class="menuitem menuitem-inline">
+            <span data-i18n="menu.language">menu.language</span>
+            <select id="langSelect" class="langselect" aria-label="menu.language">
+              <option value="en">en</option>
+              <option value="fr">fr</option>
+              <option value="de">de</option>
+            </select>
+          </div>
+
+          <button class="menuitem" role="menuitem" type="button" data-i18n="menu.tools">menu.tools</button>
+          <button class="menuitem" role="menuitem" type="button" data-i18n="menu.help">menu.help</button>
+        </nav>
+
+        <div class="window-controls" aria-label="app.windowControls.ariaLabel" data-i18n-attr="aria-label:app.windowControls.ariaLabel">
+          <button class="winbtn" type="button" id="btnMin" title="window.minimize" data-i18n-attr="title:window.minimize">
+            <span aria-hidden="true">─</span>
+          </button>
+          <button class="winbtn" type="button" id="btnMax" title="window.maximize" data-i18n-attr="title:window.maximize">
+            <span aria-hidden="true">▢</span>
+          </button>
+          <button class="winbtn winbtn-close" type="button" id="btnClose" title="window.close" data-i18n-attr="title:window.close">
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" role="main" aria-label="app.content.ariaLabel" data-i18n-attr="aria-label:app.content.ariaLabel">
+        <!-- intentionally blank -->
+      </main>
+
+      <footer class="statusbar" role="contentinfo" aria-label="app.statusbar.ariaLabel" data-i18n-attr="aria-label:app.statusbar.ariaLabel">
+        <div class="status-left" data-i18n="status.placeholder">status.placeholder</div>
+        <div class="status-right" id="statusRight" aria-live="polite"></div>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

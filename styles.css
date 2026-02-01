@@ -1,0 +1,18 @@
+.menuitem-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.langselect {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.langselect:focus {
+  outline: 2px solid rgba(255,255,255,0.18);
+  outline-offset: 2px;
+}
