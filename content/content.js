@@ -1,19 +1,31 @@
 import { UI } from "../shell/uiBus.js";
 import { applyI18nToDom } from "../i18n/i18n.js";
 import { clampInt } from "../common/input.js";
-import { createMatrix, cloneMatrix, resizeRectFillNew, applyWithMirrors } from "../common/gridMath.js";
+import { createMatrix, cloneMatrix, resizeRectFillNew } from "../common/gridMath.js";
 import { renderWizard } from "./wizard.js";
 import { renderWorkspace } from "./workspace.js";
+import { loadOpenCv } from "../common/opencvLoader.js";
+import * as ImportController from "../import/importController.js";
 
 const Steps = Object.freeze({
   HOME: "HOME",
   GAUGE: "GAUGE",
   MODE: "MODE",
+  IMPORT: "IMPORT",
   SHAPE: "SHAPE",
   WORKSPACE: "WORKSPACE",
 });
 
 const MAX_HISTORY = 100;
+
+// Drawing area physical size (inches)
+const DRAW_W_IN = 8;
+const DRAW_H_IN = 10;
+
+// Rectified output resolution
+const PX_PER_IN = 100;
+const RECT_W_PX = DRAW_W_IN * PX_PER_IN; // 800
+const RECT_H_PX = DRAW_H_IN * PX_PER_IN; // 1000
 
 const state = {
   step: Steps.HOME,
@@ -37,6 +49,25 @@ const state = {
   redoStack: [],
 
   confirmedShape: null,
+
+  import: {
+    imageDataUrl: null,
+    imageWidth: 0,
+    imageHeight: 0,
+
+    corners: null,               // [{x,y} TL/TR/BR/BL in ORIGINAL image coords]
+    cornersSource: "none",
+    lastDetectErrorKey: null,
+
+    rectifiedDataUrl: null,
+    rectifiedWidth: RECT_W_PX,
+    rectifiedHeight: RECT_H_PX,
+
+    gridColsFromGauge: 0,
+    gridRowsFromGauge: 0,
+
+    isBusy: false,               // NEW: prevents double-running detect/rectify
+  },
 };
 
 // Render scheduling
@@ -57,7 +88,7 @@ function mainEl() {
 }
 
 /* ----------------------------
-   Undo/Redo (owned by store)
+   Undo/Redo (store-owned)
 ---------------------------- */
 function snapshot() {
   return {
@@ -103,7 +134,7 @@ function redo() {
 }
 
 /* ----------------------------
-   Stroke handling
+   Stroke handling (shape editor)
 ---------------------------- */
 let strokeInProgress = false;
 let strokeSnapshot = null;
@@ -125,9 +156,6 @@ function endStroke() {
   }
 }
 
-/**
- * Paint and return list of affected cells so renderer can update classes efficiently.
- */
 function paintCellAndGetAffected(r, c, value) {
   const affected = [];
 
@@ -144,20 +172,6 @@ function paintCellAndGetAffected(r, c, value) {
   });
 
   return affected;
-}
-
-// A simpler paint call (if needed later)
-function paintCell(r, c, value) {
-  applyWithMirrors({
-    shape: state.shape,
-    rows: state.rows,
-    cols: state.cols,
-    r,
-    c,
-    value,
-    mirrorX: state.mirrorX,
-    mirrorY: state.mirrorY,
-  });
 }
 
 /* ----------------------------
@@ -197,7 +211,73 @@ function resetShape() {
 }
 
 /* ----------------------------
-   Navigation / actions
+   Import helpers
+---------------------------- */
+function clearImportState(keepImage = false) {
+  const imgUrl = keepImage ? state.import.imageDataUrl : null;
+  const w = keepImage ? state.import.imageWidth : 0;
+  const h = keepImage ? state.import.imageHeight : 0;
+
+  state.import = {
+    imageDataUrl: imgUrl,
+    imageWidth: w,
+    imageHeight: h,
+
+    corners: null,
+    cornersSource: "none",
+    lastDetectErrorKey: null,
+
+    rectifiedDataUrl: null,
+    rectifiedWidth: RECT_W_PX,
+    rectifiedHeight: RECT_H_PX,
+
+    gridColsFromGauge: 0,
+    gridRowsFromGauge: 0,
+
+    isBusy: false,
+  };
+}
+
+function parseGaugeNumber(str) {
+  const n = Number(String(str).trim());
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function computeGridFromGauge() {
+  const spi = parseGaugeNumber(state.stitchesPerInch);
+  const rpi = parseGaugeNumber(state.rowsPerInch);
+  if (!spi || !rpi) return { cols: 0, rows: 0 };
+
+  const cols = clampInt(Math.round(DRAW_W_IN * spi), 1, 300);
+  const rows = clampInt(Math.round(DRAW_H_IN * rpi), 1, 300);
+  return { cols, rows };
+}
+
+function orderCornersTLTRBRBL(points) {
+  const sums = points.map((p) => p.x + p.y);
+  const diffs = points.map((p) => p.x - p.y);
+
+  const tl = points[sums.indexOf(Math.min(...sums))];
+  const br = points[sums.indexOf(Math.max(...sums))];
+  const tr = points[diffs.indexOf(Math.min(...diffs))];
+  const bl = points[diffs.indexOf(Math.max(...diffs))];
+
+  return [tl, tr, br, bl];
+}
+
+async function loadImage(dataUrl) {
+  return await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("import.image.loadFailed"));
+    im.src = dataUrl;
+  });
+}
+
+
+/* ----------------------------
+   Navigation / Actions
 ---------------------------- */
 function setStep(step) {
   state.step = step;
@@ -211,6 +291,12 @@ const actions = {
   goToMode: () => setStep(Steps.MODE),
   goToShape: () => setStep(Steps.SHAPE),
   goToWorkspace: () => setStep(Steps.WORKSPACE),
+  goToImport: () => {
+    const g = computeGridFromGauge();
+    state.import.gridColsFromGauge = g.cols;
+    state.import.gridRowsFromGauge = g.rows;
+    setStep(Steps.IMPORT);
+  },
 
   // Gauge setters
   setGauge: (patch) => {
@@ -261,7 +347,6 @@ const actions = {
   redo,
   beginStroke,
   endStroke,
-  paintCell,
   paintCellAndGetAffected,
 
   // Resizing
@@ -282,7 +367,6 @@ const actions = {
   },
 
   // Workspace actions
-  goToShapeFromWorkspace: () => setStep(Steps.SHAPE),
   startOver: () => {
     state.step = Steps.HOME;
     state.stitchesPerInch = "";
@@ -303,24 +387,57 @@ const actions = {
     state.redoStack = [];
     state.confirmedShape = null;
 
+    clearImportState(false);
+
     UI.statusRight("status.startOver", { ttlMs: 1600 });
     scheduleRender();
   },
+
+  /* ----------------------------
+     Import actions
+  ---------------------------- */
+    importSetImage: async (file) => {
+    await ImportController.setImage({
+      state,
+      UI,
+      file,
+      scheduleRender,
+      computeGridFromGauge,
+    });
+  },
+
+  importAutoDetect: async () => {
+    await ImportController.autoDetect({ state, UI, scheduleRender });
+  },
+
+  importSetCorners: (corners, source = "manual") => {
+    ImportController.setCorners({ state, corners, source, scheduleRender });
+  },
+
+  importRectifyManual: async () => {
+    await ImportController.rectifyManual({ state, UI, scheduleRender });
+  },
+
+
+  importOpenGridEditor: (cols, rows) => {
+    const r = clampInt(rows, 1, 300);
+    const c = clampInt(cols, 1, 300);
+
+    state.rows = r;
+    state.cols = c;
+    state.shape = createMatrix(r, c, true);
+    state.undoStack = [];
+    state.redoStack = [];
+    state.confirmedShape = null;
+
+    UI.statusRight("import.status.gridReady", { ttlMs: 1600 });
+    setStep(Steps.SHAPE);
+  },
+
+  importNextStub: () => {
+    UI.statusRight("import.next.stub", { ttlMs: 2400 });
+  },
 };
-
-// alias used by workspace renderer (nicer name)
-actions.goToShape = actions.goToShape.bind(null);
-actions.goToMode = actions.goToMode.bind(null);
-actions.goToGauge = actions.goToGauge.bind(null);
-actions.goToShape = () => setStep(Steps.SHAPE);
-actions.goToMode = () => setStep(Steps.MODE);
-actions.goToGauge = () => setStep(Steps.GAUGE);
-actions.goHome = () => setStep(Steps.HOME);
-actions.goToWorkspace = () => setStep(Steps.WORKSPACE);
-actions.goToShape = () => setStep(Steps.SHAPE);
-
-// a slightly more explicit name for workspace button
-actions.goToShape = () => setStep(Steps.SHAPE);
 
 function render() {
   const root = mainEl();
@@ -340,7 +457,6 @@ function render() {
 }
 
 export function initContent() {
-  // Ensure matrix matches dims
   state.shape = createMatrix(state.rows, state.cols, true);
 
   UI.statusLeft("status.placeholder");
