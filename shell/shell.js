@@ -1,5 +1,5 @@
 import { UI } from "./uiBus.js";
-import { setLanguage, getLang, hasKey, t, applyI18nToDom } from "../i18n/i18n.js";
+import { setLanguage, getLang, hasKey, t } from "../i18n/i18n.js";
 
 function closeAllMenus() {
   document.querySelectorAll(".menu-popup").forEach((popup) => {
@@ -70,7 +70,7 @@ function initLanguageMenu() {
     const isOpen = !popup.hidden;
 
     closeAllMenus();
-    popup.hidden = isOpen; // toggle
+    popup.hidden = isOpen;
     trigger.setAttribute("aria-expanded", String(!isOpen));
     updateLanguageMenuChecks();
   });
@@ -82,10 +82,7 @@ function initLanguageMenu() {
     const lang = btn.getAttribute("data-lang");
     await setLanguage(lang);
 
-    // Re-apply translations (setLanguage already does this, but keeping it explicit is fine)
-    applyI18nToDom();
     updateLanguageMenuChecks();
-
     UI.statusRight("status.lang.changed");
     closeAllMenus();
   });
@@ -101,7 +98,6 @@ export function initShell() {
   initWindowControls();
   initLanguageMenu();
 
-  // Set a steady base message. It will translate once i18n is initialized.
   UI.statusLeft("status.placeholder");
   updateLanguageMenuChecks();
 }

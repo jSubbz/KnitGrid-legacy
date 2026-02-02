@@ -1,4 +1,3 @@
-// Tiny event bus for UI messages (status now, more later)
 export const UI = (() => {
   const listeners = new Map(); // eventName -> Set(callback)
 

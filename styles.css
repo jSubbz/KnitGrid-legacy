@@ -11,6 +11,15 @@
 
   --close-hover: rgba(232, 17, 35, 0.9);
   --close-active: rgba(232, 17, 35, 1);
+
+  --card: rgba(255, 255, 255, 0.03);
+  --focus: rgba(255, 255, 255, 0.18);
+
+  --pressed-bg: rgba(255, 255, 255, 0.18);
+  --pressed-border: rgba(255, 255, 255, 0.55);
+
+  /* NEW: cell sizing defaults (will be overridden dynamically in JS via --cell) */
+  --cell: 18px;
 }
 
 * { box-sizing: border-box; }
@@ -101,7 +110,7 @@ html, body {
 .menu-popup-item:active { background: var(--active); }
 
 .menu-popup-item[aria-checked="true"] {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Window controls */
@@ -150,5 +159,268 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* Optional: maximize visual tweak */
 .window.is-max { border-color: transparent; }
+
+/* Wizard UI */
+.wizard {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.card-subtitle {
+  margin: 6px 0 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.card-body {
+  padding: 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .row { grid-template-columns: 1fr; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.input, .textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 10px;
+  font-size: 13px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.input:focus, .textarea:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+}
+
+.btn:hover { background: rgba(255, 255, 255, 0.06); }
+.btn:active { background: rgba(255, 255, 255, 0.10); }
+
+.btn-primary { background: rgba(255, 255, 255, 0.08); }
+.btn-primary:hover { background: rgba(255, 255, 255, 0.10); }
+.btn-primary:active { background: rgba(255, 255, 255, 0.14); }
+
+.btn-danger:hover { background: rgba(232, 17, 35, 0.18); }
+.btn-danger:active { background: rgba(232, 17, 35, 0.25); }
+
+.btn[aria-pressed="true"] {
+  background: var(--pressed-bg);
+  border-color: var(--pressed-border);
+}
+
+/* Choices */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .choice-grid { grid-template-columns: 1fr; }
+}
+.choice {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.choice-title {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+.choice-text {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Shape editor */
+.shape-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px 0;
+}
+.shape-toolbar .btn {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.shape-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.shape-info .input {
+  width: 92px;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+.shape-info .times {
+  opacity: 0.7;
+  padding: 0 2px;
+}
+
+
+/* Grid wrappers */
+.grid-wrap {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 12px;
+
+  /* default scroll behavior; editor will override via .grid-wrap.editor */
+  overflow: auto;
+}
+
+/* NEW: editor grid is centered and prefers scaling over scrollbars */
+.grid-wrap.editor {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  overflow: hidden;   /* avoid scrollbar, we shrink cells instead */
+}
+
+/* Centered variant (workspace) */
+.grid-wrap.centered {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Grid itself */
+.grid {
+  display: grid;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  width: fit-content;
+  border-radius: 10px;
+  padding: 1px;
+}
+
+.cell {
+  width: var(--cell);
+  height: var(--cell);
+  background: rgba(0, 0, 0, 0.25);
+  cursor: default;
+}
+
+.cell.on {
+  background: rgba(255, 255, 255, 0.80);
+}
+
+.cell:hover {
+  outline: 1px solid rgba(255, 255, 255, 0.25);
+  outline-offset: -1px;
+}
+
+/* Workspace */
+.workspace {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+  gap: 12px;
+  min-height: 520px;
+}
+@media (max-width: 980px) {
+  .workspace { grid-template-columns: 1fr; }
+}
+.sidepanel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.centerpanel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+.centerpanel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.centerpanel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+}
