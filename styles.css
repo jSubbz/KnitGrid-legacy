@@ -424,3 +424,55 @@ html, body {
   color: var(--muted);
   font-size: 12px;
 }
+/* Import UI */
+.import-wrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.import-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.import-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.corner-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+}
+
+.corner-handle:active {
+  cursor: grabbing;
+}
+
+.import-rect-wrap {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 10px;
+}
+
+.import-rect-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  display: block;
+}
+

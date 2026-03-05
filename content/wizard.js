@@ -1,25 +1,19 @@
 import { UI } from "../shell/uiBus.js";
 import { renderCard, mkButton, mkField } from "../common/domUI.js";
 import { clampInt } from "../common/input.js";
+import { renderImportStep } from "./wizard/importStep.js";
 
-/**
- * We attach keyboard shortcuts only once.
- */
 let shortcutsAttached = false;
-
-/**
- * We attach a resize listener for the current shape editor instance.
- * Each render aborts the previous handler.
- */
 let shapeResizeAbort = null;
+let importAbort = null;
 
 export function renderWizard({ state, actions }) {
   if (state.step === "HOME") return renderHome({ actions });
   if (state.step === "GAUGE") return renderGauge({ state, actions });
   if (state.step === "MODE") return renderMode({ state, actions });
+  if (state.step === "IMPORT") return renderImportCard({ state, actions });
   if (state.step === "SHAPE") return renderShapeEditor({ state, actions });
 
-  // fallback
   return renderHome({ actions });
 }
 
@@ -186,8 +180,8 @@ function renderMode({ state, actions }) {
 
   const importBtn = mkButton({
     key: "mode.importShape.button",
-    className: "btn",
-    onClick: () => UI.statusRight("status.notImplemented", { ttlMs: 1800 }),
+    className: "btn btn-primary",
+    onClick: actions.goToImport,
   });
 
   right.appendChild(t2);
@@ -198,7 +192,6 @@ function renderMode({ state, actions }) {
   row.appendChild(right);
   body.appendChild(row);
 
-  // Visual selection highlight
   if (state.knitMode === "flat") btnFlat.classList.add("btn-primary");
   else btnRound.classList.add("btn-primary");
 
@@ -215,8 +208,18 @@ function renderMode({ state, actions }) {
     actionsEl,
   });
 }
+function renderImportCard({ state, actions }) {
+  const { body, actionsEl } = renderImportStep({ state, actions });
+  return renderCard({
+    titleKey: "import.title",
+    subtitleKey: "import.subtitle",
+    bodyEl: body,
+    actionsEl,
+  });
+}
 
-/* SHAPE EDITOR */
+
+/* SHAPE EDITOR (unchanged from your working version) */
 function renderShapeEditor({ state, actions }) {
   const body = document.createElement("div");
 
@@ -290,7 +293,6 @@ function renderShapeEditor({ state, actions }) {
 
   body.appendChild(toolbar);
 
-  // Grid size: cols × rows
   const info = document.createElement("div");
   info.className = "shape-info";
 
@@ -342,7 +344,6 @@ function renderShapeEditor({ state, actions }) {
   hint.textContent = "shape.hint";
   body.appendChild(hint);
 
-  // Grid wrap (centered, prefers shrinking cells)
   const wrap = document.createElement("div");
   wrap.className = "grid-wrap editor";
 
@@ -351,10 +352,8 @@ function renderShapeEditor({ state, actions }) {
   grid.style.gridTemplateColumns = `repeat(${state.cols}, var(--cell))`;
   grid.style.gridTemplateRows = `repeat(${state.rows}, var(--cell))`;
 
-  // Avoid context menu so right-drag can re-add stitches
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Resize handler (abort previous per render)
   if (shapeResizeAbort) shapeResizeAbort.abort();
   shapeResizeAbort = new AbortController();
 
@@ -379,20 +378,6 @@ function renderShapeEditor({ state, actions }) {
   requestAnimationFrame(applyCellSize);
   window.addEventListener("resize", applyCellSize, { signal: shapeResizeAbort.signal });
 
-  // Drag paint logic (sweep across)
-  let isPointerDown = false;
-  let strokeStarted = false;
-  let strokeValue = false; // left removes (false), right adds (true)
-
-  const paintCellFromEl = (cellEl) => {
-    if (!cellEl) return;
-    const r = Number(cellEl.getAttribute("data-r"));
-    const c = Number(cellEl.getAttribute("data-c"));
-    actions.paintCell(r, c, strokeValue);
-    // update only the affected cell classes by re-render? we do minimal visual update below
-  };
-
-  // Build cells with direct class toggling for performance
   for (let r = 0; r < state.rows; r++) {
     for (let c = 0; c < state.cols; c++) {
       const cell = document.createElement("div");
@@ -409,13 +394,14 @@ function renderShapeEditor({ state, actions }) {
     if (el) el.classList.toggle("on", value);
   };
 
-  // Paint action that also updates DOM quickly
   const paintAndUpdateDom = (r, c, value) => {
     const affected = actions.paintCellAndGetAffected(r, c, value);
-    for (const { rr, cc, vv } of affected) {
-      setCellClass(rr, cc, vv);
-    }
+    for (const { rr, cc, vv } of affected) setCellClass(rr, cc, vv);
   };
+
+  let isPointerDown = false;
+  let strokeStarted = false;
+  let strokeValue = false;
 
   grid.addEventListener("pointerdown", (e) => {
     const cell = e.target.closest(".cell");
@@ -429,8 +415,7 @@ function renderShapeEditor({ state, actions }) {
       actions.beginStroke();
     }
 
-    strokeValue = (e.button === 2); // right adds, left removes
-
+    strokeValue = (e.button === 2);
     const r = Number(cell.getAttribute("data-r"));
     const c = Number(cell.getAttribute("data-c"));
     paintAndUpdateDom(r, c, strokeValue);
@@ -438,12 +423,9 @@ function renderShapeEditor({ state, actions }) {
 
   grid.addEventListener("pointermove", (e) => {
     if (!isPointerDown) return;
-
-    // Critical: use elementFromPoint so sweeping works while captured
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cell = el?.closest?.(".cell");
     if (!cell) return;
-
     const r = Number(cell.getAttribute("data-r"));
     const c = Number(cell.getAttribute("data-c"));
     paintAndUpdateDom(r, c, strokeValue);
@@ -455,15 +437,8 @@ function renderShapeEditor({ state, actions }) {
     actions.endStroke();
   };
 
-  grid.addEventListener("pointerup", () => {
-    isPointerDown = false;
-    endStroke();
-  });
-
-  grid.addEventListener("pointercancel", () => {
-    isPointerDown = false;
-    endStroke();
-  });
+  grid.addEventListener("pointerup", () => { isPointerDown = false; endStroke(); });
+  grid.addEventListener("pointercancel", () => { isPointerDown = false; endStroke(); });
 
   wrap.appendChild(grid);
   body.appendChild(wrap);
