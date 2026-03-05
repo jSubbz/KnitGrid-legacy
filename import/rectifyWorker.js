@@ -9,31 +9,18 @@ function ensureCv(opencvUrl) {
   cvReadyPromise = new Promise((resolve, reject) => {
     try {
       self.importScripts(opencvUrl);
-    } catch (e) {
+    } catch {
       reject(new Error("import.worker.opencvLoadFailed"));
       return;
     }
 
-    // opencv.js sets global `cv` and calls `cv.onRuntimeInitialized`
     if (!self.cv) {
       reject(new Error("import.worker.cvMissing"));
       return;
     }
 
     self.cv.onRuntimeInitialized = () => resolve(self.cv);
-
-    // Safety: if initialization never happens
-    setTimeout(() => {
-      // If already resolved, this does nothing.
-      // If not resolved by now, treat as failure.
-      // (Keeps worker from "hanging forever")
-      // eslint-disable-next-line no-undef
-      if (cvReadyPromise && self.cv && !self.cv.__runtimeReadyFlag) {
-        // We'll set a flag once resolved below
-      }
-    }, 15000);
   }).then((cv) => {
-    // mark ready
     cv.__runtimeReadyFlag = true;
     return cv;
   });
@@ -42,17 +29,23 @@ function ensureCv(opencvUrl) {
 }
 
 self.onmessage = async (e) => {
-  const msg = e.data;
-  const { opencvUrl, width, height, imageBuffer, corners, outW, outH } = msg;
+  const { opencvUrl, width, height, imageBuffer, corners, outW, outH } = e.data || {};
 
   try {
     const cv = await ensureCv(opencvUrl);
+
+    if (!width || !height || !imageBuffer) throw new Error("import.worker.badInput");
+    if (!Array.isArray(corners) || corners.length !== 4) throw new Error("import.worker.badCorners");
+    if (!outW || !outH) throw new Error("import.worker.badOutSize");
 
     // Reconstruct ImageData from transferred buffer
     const u8 = new Uint8ClampedArray(imageBuffer);
     const imageData = new ImageData(u8, width, height);
 
+
+    
     const src = cv.matFromImageData(imageData);
+    if (!src || src.empty()) throw new Error("import.worker.emptySrc");
 
     const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
       corners[0].x, corners[0].y,
@@ -69,8 +62,9 @@ self.onmessage = async (e) => {
     ]);
 
     const M = cv.getPerspectiveTransform(srcTri, dstTri);
-    const dst = new cv.Mat();
+    if (!M || M.empty()) throw new Error("import.worker.homographyEmpty");
 
+    const dst = new cv.Mat();
     cv.warpPerspective(
       src,
       dst,
@@ -81,7 +75,9 @@ self.onmessage = async (e) => {
       new cv.Scalar()
     );
 
-    // dst is RGBA
+    if (!dst || dst.empty()) throw new Error("import.worker.warpEmpty");
+
+    // Copy bytes out before deleting Mats
     const out = new Uint8ClampedArray(dst.data);
 
     // Cleanup
@@ -91,15 +87,11 @@ self.onmessage = async (e) => {
     M.delete();
     dst.delete();
 
-    // Transfer buffer back
-    self.postMessage(
-      { ok: true, outW, outH, outBuffer: out.buffer },
-      [out.buffer]
-    );
+    self.postMessage({ ok: true, outW, outH, outBuffer: out.buffer }, [out.buffer]);
   } catch (err) {
     self.postMessage({
       ok: false,
-      error: (err && err.message) ? String(err.message) : "import.worker.unknownError",
+      error: err && err.message ? String(err.message) : "import.worker.unknownError",
     });
   }
 };

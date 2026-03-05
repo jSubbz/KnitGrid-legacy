@@ -36,11 +36,14 @@ function orderCornersTLTRBRBL(points) {
 
   const tl = points[sums.indexOf(Math.min(...sums))];
   const br = points[sums.indexOf(Math.max(...sums))];
-  const tr = points[diffs.indexOf(Math.min(...diffs))];
-  const bl = points[diffs.indexOf(Math.max(...diffs))];
+
+  // In image coords (y down): TR has max (x - y), BL has min (x - y)
+  const tr = points[diffs.indexOf(Math.max(...diffs))];
+  const bl = points[diffs.indexOf(Math.min(...diffs))];
 
   return [tl, tr, br, bl];
 }
+
 
 export async function detectMarkersFastJS(dataUrl) {
   // Run on a small canvas for speed
