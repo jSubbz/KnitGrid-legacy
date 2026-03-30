@@ -1,6 +1,7 @@
 // content/workspace.js
 import { renderCard, mkButton } from "../common/domUI.js";
 import { UI } from "../shell/uiBus.js";
+import { getPatternCell, patternCellToText } from "../common/patternGrid.js";
 
 let cleanup = null;
 
@@ -128,6 +129,10 @@ function makeModal() {
   return { backdrop, msg, btnCancel, btnTrunc, btnContinue };
 }
 
+function getCellText(pattern, r, c) {
+  return patternCellToText(getPatternCell(pattern, r, c));
+}
+
 export function renderWorkspace({ state, actions, hotkeys }) {
   if (typeof cleanup === "function") cleanup();
   cleanup = null;
@@ -182,7 +187,7 @@ export function renderWorkspace({ state, actions, hotkeys }) {
 
   const hint = document.createElement("div");
   hint.className = "meta";
-  hint.textContent = "0–9 paint | arrows move | Shift+arrows select | T capture | Esc clear";
+  hint.textContent = "0–5 paint | arrows move | Shift+arrows select | T capture | Esc clear";
 
   leftSection.appendChild(editBtn);
   leftSection.appendChild(modeBtn);
@@ -233,10 +238,10 @@ export function renderWorkspace({ state, actions, hotkeys }) {
       const cell = document.createElement("div");
       const inShape = !!mask[r][c];
       const isCursor = state.workspace.cursor.r === r && state.workspace.cursor.c === c;
-      const v = state.workspace.pattern ? (state.workspace.pattern[r]?.[c] ?? 0) : 0;
+      const text = state.workspace.pattern ? getCellText(state.workspace.pattern, r, c) : "";
 
       cell.className = "cell" + (inShape ? " on" : "") + (isCursor ? " cursor" : "");
-      if (inShape && v !== 0) cell.textContent = String(v);
+      if (inShape && text) cell.textContent = text;
 
       const k = `${r},${c}`;
       cellByKey.set(k, cell);
@@ -301,7 +306,6 @@ export function renderWorkspace({ state, actions, hotkeys }) {
   canvas.height = 220;
   rightSection.appendChild(canvas);
 
-  // Motif / Destination buttons
   const roleRow = document.createElement("div");
   roleRow.style.display = "flex";
   roleRow.style.gap = "8px";
@@ -348,7 +352,6 @@ export function renderWorkspace({ state, actions, hotkeys }) {
 
   modeSel.addEventListener("change", () => actions.setTileApplyConfig({ mode: modeSel.value }));
 
-  // Destination controls
   const destWrap = document.createElement("div");
   destWrap.style.display = "flex";
   destWrap.style.flexDirection = "column";
@@ -384,7 +387,6 @@ export function renderWorkspace({ state, actions, hotkeys }) {
   }
   syncDestUI(modeSel.value, state.workspace.tileApply.destRect);
 
-  // Overwrite blanks toggle
   const zerosWrap = document.createElement("label");
   zerosWrap.style.display = "flex";
   zerosWrap.style.gap = "8px";
@@ -448,7 +450,6 @@ export function renderWorkspace({ state, actions, hotkeys }) {
     });
   });
 
-  // Notes (row numbers bottom-up)
   const notesTitle = document.createElement("div");
   notesTitle.className = "panel-title";
   notesTitle.setAttribute("data-i18n", "workspace.notes.title");
@@ -498,29 +499,31 @@ export function renderWorkspace({ state, actions, hotkeys }) {
     positionSelectionOverlay(state.workspace.selection.rect);
   });
 
-  const offPaint = UI.on("workspace:paint", ({ r, c, value }) => {
+  const offPaint = UI.on("workspace:paint", ({ r, c, symbol }) => {
     const cell = cellByKey.get(`${r},${c}`);
     if (!cell) return;
     if (!mask[r]?.[c]) return;
 
-    const v = Number(value) || 0;
-    cell.textContent = v === 0 ? "" : String(v);
+    const text = patternCellToText({ symbol });
+    cell.textContent = text || "";
   });
 
   const offBulkPaint = UI.on("workspace:bulkPaint", ({ changes }) => {
     if (!Array.isArray(changes)) return;
+
     for (const ch of changes) {
       const r = ch?.r;
       const c = ch?.c;
-      const value = ch?.value;
+      const symbol = ch?.symbol;
+
       if (!Number.isFinite(r) || !Number.isFinite(c)) continue;
 
       const cell = cellByKey.get(`${r},${c}`);
       if (!cell) continue;
       if (!mask[r]?.[c]) continue;
 
-      const v = Number(value) || 0;
-      cell.textContent = v === 0 ? "" : String(v);
+      const text = patternCellToText({ symbol });
+      cell.textContent = text || "";
     }
   });
 
